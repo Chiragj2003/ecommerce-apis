@@ -5,27 +5,26 @@ const resend = new Resend(process.env.RESEND_SECRET)
 interface EmailArgs {
     name?: string;
     email : string;
-    token : string;
+    verificationLink : string;
 }
 
 
 export const sendEmail = async ({
     email,
-    token,
+    verificationLink,
     name
 }: EmailArgs)=>{
     try {
 
-        const verificationLink = `${process.env.CLIENT_ORIGIN}/verify?token=${token}`
 
         await resend.emails.send({
             from: 'onboarding@resend.dev',
             to: email,
-            subject: 'Verify your account',
+            subject: 'Verification email',
             html: `
             <div>
                 <pre>Dear ${name||"User"}</pre>
-                <pre>Click here to verify your account</pre>
+                <pre>Click here to verify</pre>
                 <a href="${verificationLink}">Click here</a>
             </div>    
             `

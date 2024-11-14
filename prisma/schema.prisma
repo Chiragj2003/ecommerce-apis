@@ -30,3 +30,12 @@ model VerificationToken {
 }
 
 
+model ForgetPasswordToken {
+  id String @id @default(cuid())
+  token String 
+  email String @unique
+  expires DateTime
+
+  createdAt DateTime @default(now())
+  @@index([token, email])
+}

@@ -3,10 +3,11 @@ import { db } from "../db";
 import bcrypt, { hash } from "bcryptjs";
 import { RegisterSChema } from "../schemas/register.schema";
 import { LoginSchema } from "../schemas/login.schema";
-import { generateAccessToken, generateVerificationToken, verifyVerificationToken } from "../controllers/tokens";
+import { generateAccessToken, generateForgetPasswordToken, generateVerificationToken, verifyVerificationToken } from "../controllers/tokens";
 import { cookiesOption } from "../libs/constants";
 import { sendEmail } from "../libs/email";
 import { VerificationTokenSchema } from "../schemas/token.schema";
+import { ForgetPasswordSchema } from "../schemas/forget-password.schema";
 
 const authRouter = Router();
 
@@ -42,10 +43,12 @@ authRouter.post("/register", async(req, res)=>{
             return res.send("Something went wrong").status(401);
         }
 
+        const verificationLink = `${process.env.CLIENT_ORIGIN}/verify?token=${token}`
+
         await sendEmail({
             email : user.email,
             name : user.name||undefined,
-            token
+            verificationLink
         });
 
         return res.json({
@@ -120,10 +123,12 @@ authRouter.post("/login" , async (req,res) =>{
                 return res.send("Something went wrong").status(401);
             }
 
+            const verificationLink = `${process.env.CLIENT_ORIGIN}/verify?token=${token}`
+
             await sendEmail({
                 email : user.email,
                 name : user.name||undefined,
-                token
+                verificationLink
             });
 
             return res.json({
@@ -152,6 +157,51 @@ authRouter.post("/login" , async (req,res) =>{
     }
 });
 
+
+authRouter.post("/forget-password",  async(req, res)=>{
+    try {
+        
+        const body = req.body;
+        const validatedSchema = await ForgetPasswordSchema.safeParseAsync(body);
+        if (!validatedSchema.success) {
+            return res.send("Invalid email").status(400);
+        }
+
+        const email = validatedSchema.data.email;
+        const user = await db.user.findUnique({
+            where : {
+                email
+            }
+        });
+
+        if (!user) {
+            return res.send("Account not found").status(404);
+        }
+
+        const token = await generateForgetPasswordToken(user.email);
+        if (!token) {
+            return res.send("Something went wrong").status(401);
+        }
+
+        const verificationLink = `${process.env.CLIENT_ORIGIN}/verify-forget-password?token=${token}`
+
+        await sendEmail({
+            email : user.email,
+            name : user.name||undefined,
+            verificationLink
+        });
+
+        return res.json({
+            success: true,
+            message : "Forget password verification email has been sent successfully",
+            data : null
+        });
+
+    } catch (error) {
+        console.log("FORGET PASSWORD API ERROR ",error);
+        return res.send("Internal Server Error").status(500);
+    }
+})
 
 
 export { authRouter }

@@ -108,3 +108,50 @@ export const verifyVerificationToken = async(jwtToken: string) => {
         return false;
     }
 }
+
+
+export const generateForgetPasswordToken = async(email:string)=>{
+    try {
+
+        const token = uuidv4();
+        const expires = new Date(Date.now()+10*60*1000)
+
+        const existedToken = await db.forgetPasswordToken.findUnique({
+            where : {
+                email
+            }
+        });
+
+        if (existedToken) {
+            await db.forgetPasswordToken.delete({
+                where : {
+                    id : existedToken.id
+                }
+            });
+        }
+
+        const forgetPasswordToken = await db.forgetPasswordToken.create({
+            data : {
+                email,
+                token,
+                expires
+            }
+        });
+
+        const jwtToken = jwt.sign({
+                email,
+                token
+            },
+            process.env.FORGET_PASSWORD_TOKEN_SECRET!,
+            {
+                expiresIn : "10m"
+            }
+        );
+
+        return jwtToken;
+        
+    } catch (error) {
+        console.log("GENERATE FORGET PASSWORD TOKEN", error);
+        return null;
+    }
+}
