@@ -3,11 +3,12 @@ import { db } from "../db";
 import bcrypt, { hash } from "bcryptjs";
 import { RegisterSChema } from "../schemas/register.schema";
 import { LoginSchema } from "../schemas/login.schema";
-import { generateAccessToken, generateForgetPasswordToken, generateVerificationToken, verifyVerificationToken } from "../controllers/tokens";
+import { generateAccessToken, generateForgetPasswordToken, generateVerificationToken, verifyForgetPasswordToken, verifyVerificationToken } from "../controllers/tokens";
 import { cookiesOption } from "../libs/constants";
 import { sendEmail } from "../libs/email";
 import { VerificationTokenSchema } from "../schemas/token.schema";
 import { ForgetPasswordSchema } from "../schemas/forget-password.schema";
+import { VerifyForgetPasswordSchema } from "../schemas/verify-forget-password.schema";
 
 const authRouter = Router();
 
@@ -202,6 +203,54 @@ authRouter.post("/forget-password",  async(req, res)=>{
         return res.send("Internal Server Error").status(500);
     }
 })
+
+
+authRouter.patch("/verify-forget-password", async(req, res)=>{
+    try {
+
+        const body = req.body;
+        const validatedSchema = await VerifyForgetPasswordSchema.safeParseAsync(body);
+
+        if (!validatedSchema.success) {
+            return res.send("Password is required").status(400);
+        }
+
+        const { token, password } = validatedSchema.data;
+
+        const email = await verifyForgetPasswordToken(token)
+        if (!email) {
+            return res.send("Your verification email has been expired").status(401);
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const user = await db.user.update({
+            where : {
+               email 
+            },
+            data : {
+                password : hashedPassword
+            },
+            select : {
+                id : true,
+                email : true,
+                name : true
+            }
+        });
+        
+        return res.json({
+            success : true,
+            message : "Your password has been changed succesfully",
+            data : user
+        }).status(200);
+
+        
+    } catch (error) {
+        console.log("VERIFY FORGET PASSWORD API ERROR ",error);
+        return res.send("Internal Server Error").status(500);
+    }
+})
+
 
 
 export { authRouter }

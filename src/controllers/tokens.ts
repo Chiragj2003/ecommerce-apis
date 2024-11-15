@@ -155,3 +155,40 @@ export const generateForgetPasswordToken = async(email:string)=>{
         return null;
     }
 }
+
+
+export const verifyForgetPasswordToken = async(jwtToken: string) => {
+    try {
+        
+        const data = jwt.verify(jwtToken, process.env.FORGET_PASSWORD_TOKEN_SECRET!);
+        if (!data) {
+            return null;
+        }
+        
+        // @ts-ignore
+        const { email, token } : { email: string, token: string } = data;
+        const forgetPasswordToken = await db.forgetPasswordToken.findUnique({
+            where : {
+                email,
+                token
+            }
+        });
+
+
+        if (!forgetPasswordToken) {
+            return null
+        }
+
+        const isExpired = new Date()> new Date(forgetPasswordToken.expires);
+        
+        if (isExpired) {
+            return null
+        }
+        
+        return email;
+
+    } catch (error) {
+        console.log("VERIFY VERIFICATION TOKEN");
+        return null;
+    }
+}
